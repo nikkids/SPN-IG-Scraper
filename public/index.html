@@ -1,0 +1,69 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SPN Likers Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#4a7fd8;--navy:#1b1b5e;--pink:#d6177a;--bg:#f4f7fd;--line:#dbe4f5;--soft:#eaf1fd;--mut:#7a86a8}
+*{box-sizing:border-box}body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:var(--bg);color:var(--navy);font-size:14px}
+[hidden]{display:none!important}
+header{background:var(--blue);padding:12px 20px;display:flex;gap:18px;align-items:center}
+.logo{color:#fff;font-size:20px;font-weight:800}
+nav{display:flex;gap:6px}nav button{border:0;background:transparent;color:#fff;padding:9px 16px;border-radius:99px;font:600 14px inherit;font-family:inherit;cursor:pointer}
+nav button.on{background:#fff;color:var(--navy)}
+.wrap{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 60px)}
+aside{background:#fff;border-right:1px solid var(--line);padding:22px 18px}
+aside h4{margin:0}aside small,.mut{color:var(--mut)}
+label{display:block;margin:18px 0 6px;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--blue)}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft);color:var(--navy);font:inherit}
+textarea{min-height:110px}
+main{padding:24px;max-width:1000px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+h1{margin:0 0 4px;font-size:24px}
+.pink{background:var(--pink);color:#fff;border:0;border-radius:99px;padding:12px 22px;font:700 14px inherit;font-family:inherit;cursor:pointer}
+.ghost{width:100%;margin-top:18px;background:var(--soft);color:var(--mut);border:0;border-radius:99px;padding:10px;font-family:inherit;cursor:pointer}
+table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;letter-spacing:.06em;color:var(--mut);padding:8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line)}a{color:var(--blue);text-decoration:none;font-weight:600}
+.job{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.job>div{flex:1;min-width:0}.job small{display:block;color:var(--mut)}
+.chip{padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;background:var(--soft);color:var(--blue)}
+.chip.SUCCEEDED{background:#e2f6ea;color:#17803d}.chip.FAILED{background:#fde6ef;color:var(--pink)}
+.x{border:0;background:none;color:var(--mut);cursor:pointer;font-family:inherit}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#login{display:grid;place-items:center;min-height:100vh}#login .card{width:320px}.err{color:var(--pink)}
+@media(max-width:760px){.wrap{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}}
+</style></head><body>
+<div id="login"><div class="card"><h1>Masuk</h1><p class="mut">Masukkan password aplikasi.</p><input id="pw" type="password"><br><br><button class="pink" id="go">Masuk</button><p id="err" class="err"></p></div></div>
+<div id="app" hidden>
+<header><span class="logo">SPN</span><nav><button data-t="data" class="on">Data</button><button data-t="post">Post</button></nav></header>
+<div class="wrap"><aside><h4>Filter</h4><small id="cnt"></small>
+<label>PENCARIAN</label><input id="q" placeholder="Cari username atau nama">
+<label>POST</label><select id="f"></select><button class="ghost" id="rf">Atur ulang filter</button></aside>
+<main>
+<section id="t-data"><h1>Akun yang berinteraksi</h1><p class="mut">Daftar akun yang nge-like post yang sudah di-scrape.</p>
+<div class="card"><div class="row"><b>Hasil scrape</b><button class="pink" id="exp">Unduh CSV</button></div><br><table><thead><tr><th>USERNAME</th><th>NAMA</th><th>POST</th><th>TANGGAL</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<section id="t-post" hidden><h1>Tambah post</h1><p class="mut">Satu URL per baris (maks 10). Hasilnya masuk ke database otomatis.</p>
+<div class="card"><textarea id="urls" placeholder="https://www.instagram.com/p/xxxx/"></textarea>
+<label>MAKS AKUN PER POST</label><input id="max" type="number" value="1000" min="1" max="5000" style="max-width:160px"><br><br>
+<button class="pink" id="add">Tambah dan scrape</button> <small class="mut" id="msg"></small></div>
+<div class="card"><div class="row"><b>Riwayat scrape</b><button class="ghost" id="ref" style="width:auto;margin:0;padding:8px 16px">Perbarui status</button></div><div id="jobs"></div></div></section>
+</main></div></div>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let pw=sessionStorage.getItem("pw")||"",S={jobs:[],likers:[]},q="",f="";
+const short=u=>u.replace("https://www.instagram.com/","");
+async function api(action,extra={}){const r=await fetch("/api",{method:"POST",headers:{"x-app-password":pw,"content-type":"application/json"},body:JSON.stringify({action,...extra})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Error "+r.status);S=d;render();}
+function view(){const L=S.likers.filter(x=>(!f||x.post===f)&&(!q||(x.u+" "+x.n).toLowerCase().includes(q)));return L}
+function render(){const L=view();
+$("#cnt").innerHTML=`<b>${L.length}</b> dari ${S.likers.length} data`;
+$("#f").innerHTML='<option value="">Semua post</option>'+S.jobs.filter(j=>j.status==="SUCCEEDED").map(j=>`<option value="${esc(j.url)}"${f===j.url?" selected":""}>${esc(short(j.url))}</option>`).join("");
+$("#rows").innerHTML=L.slice(0,500).map(x=>`<tr><td><a target="_blank" rel="noopener" href="https://instagram.com/${esc(x.u)}">@${esc(x.u)}</a></td><td>${esc(x.n)}</td><td>${esc(short(x.post))}</td><td>${esc(x.at.slice(0,10))}</td></tr>`).join("")||'<tr><td colspan="4" class="mut">Belum ada data</td></tr>';
+const lb={RUNNING:"Berjalan",SUCCEEDED:"Selesai",FAILED:"Gagal"};
+$("#jobs").innerHTML=S.jobs.map(j=>`<div class="job"><div><b>${esc(short(j.url))}</b><small>${esc(j.added.slice(0,16).replace("T"," "))} · ${j.count||0} akun</small></div><span class="chip ${j.status}">${lb[j.status]||j.status}</span><button class="x" data-del="${j.id}">Hapus</button></div>`).join("")||'<p class="mut">Belum ada riwayat.</p>';}
+function csv(){const e=v=>`"${String(v??"").replace(/"/g,'""')}"`;const t=["username,nama,post,tanggal",...view().map(x=>[x.u,x.n,x.post,x.at.slice(0,10)].map(e).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv"}));a.download="likers.csv";a.click();}
+async function login(){try{pw=$("#pw").value||pw;await api("refresh");sessionStorage.setItem("pw",pw);$("#login").hidden=true;$("#app").hidden=false}catch(e){$("#err").textContent=e.message}}
+$("#go").onclick=login;$("#pw").onkeydown=e=>e.key==="Enter"&&login();
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));$("#t-data").hidden=b.dataset.t!=="data";$("#t-post").hidden=b.dataset.t!=="post"});
+$("#q").oninput=e=>{q=e.target.value.toLowerCase();render()};$("#f").onchange=e=>{f=e.target.value;render()};
+$("#rf").onclick=()=>{q=f="";$("#q").value="";render()};$("#exp").onclick=csv;$("#ref").onclick=()=>api("refresh").catch(e=>alert(e.message));
+$("#add").onclick=async()=>{const urls=$("#urls").value.split(/\s+/).filter(Boolean);if(!urls.length)return;$("#msg").textContent="Memulai...";try{await api("add",{urls,max:$("#max").value});$("#urls").value="";$("#msg").textContent="Dimulai. Status diperbarui otomatis."}catch(e){$("#msg").textContent=e.message}};
+$("#jobs").onclick=e=>{const id=e.target.dataset.del;if(id&&confirm("Hapus post ini beserta datanya?"))api("delete",{id}).catch(x=>alert(x.message))};
+setInterval(()=>{if(!$("#app").hidden&&S.jobs.some(j=>j.status==="RUNNING"))api("refresh").catch(()=>{})},15000);
+if(pw){$("#pw").value=pw;login()}
+</script></body></html>
