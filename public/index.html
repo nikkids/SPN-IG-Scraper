@@ -29,8 +29,7 @@ td{padding:9px 8px;border-bottom:1px solid var(--line)}a{color:var(--blue);text-
 #login{display:grid;place-items:center;min-height:100vh}#login .card{width:320px}.err{color:var(--pink)}
 @media(max-width:760px){.wrap{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}}
 </style></head><body>
-<div id="login"><div class="card"><h1>Masuk</h1><p class="mut">Masukkan password aplikasi.</p><input id="pw" type="password"><br><br><button class="pink" id="go">Masuk</button><p id="err" class="err"></p></div></div>
-<div id="app" hidden>
+<div id="app">
 <header><span class="logo">SPN</span><nav><button data-t="data" class="on">Data</button><button data-t="post">Post</button></nav></header>
 <div class="wrap"><aside><h4>Filter</h4><small id="cnt"></small>
 <label>PENCARIAN</label><input id="q" placeholder="Cari username atau nama">
@@ -46,9 +45,9 @@ td{padding:9px 8px;border-bottom:1px solid var(--line)}a{color:var(--blue);text-
 </main></div></div>
 <script>
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let pw=sessionStorage.getItem("pw")||"",S={jobs:[],likers:[]},q="",f="";
+let S={jobs:[],likers:[]},q="",f="";
 const short=u=>u.replace("https://www.instagram.com/","");
-async function api(action,extra={}){const r=await fetch("/api",{method:"POST",headers:{"x-app-password":pw,"content-type":"application/json"},body:JSON.stringify({action,...extra})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Error "+r.status);S=d;render();}
+async function api(action,extra={}){const r=await fetch("/api",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action,...extra})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Error "+r.status);S=d;render();}
 function view(){const L=S.likers.filter(x=>(!f||x.post===f)&&(!q||(x.u+" "+x.n).toLowerCase().includes(q)));return L}
 function render(){const L=view();
 $("#cnt").innerHTML=`<b>${L.length}</b> dari ${S.likers.length} data`;
@@ -57,13 +56,11 @@ $("#rows").innerHTML=L.slice(0,500).map(x=>`<tr><td><a target="_blank" rel="noop
 const lb={RUNNING:"Berjalan",SUCCEEDED:"Selesai",FAILED:"Gagal"};
 $("#jobs").innerHTML=S.jobs.map(j=>`<div class="job"><div><b>${esc(short(j.url))}</b><small>${esc(j.added.slice(0,16).replace("T"," "))} · ${j.count||0} akun</small></div><span class="chip ${j.status}">${lb[j.status]||j.status}</span><button class="x" data-del="${j.id}">Hapus</button></div>`).join("")||'<p class="mut">Belum ada riwayat.</p>';}
 function csv(){const e=v=>`"${String(v??"").replace(/"/g,'""')}"`;const t=["username,nama,post,tanggal",...view().map(x=>[x.u,x.n,x.post,x.at.slice(0,10)].map(e).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv"}));a.download="likers.csv";a.click();}
-async function login(){try{pw=$("#pw").value||pw;await api("refresh");sessionStorage.setItem("pw",pw);$("#login").hidden=true;$("#app").hidden=false}catch(e){$("#err").textContent=e.message}}
-$("#go").onclick=login;$("#pw").onkeydown=e=>e.key==="Enter"&&login();
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));$("#t-data").hidden=b.dataset.t!=="data";$("#t-post").hidden=b.dataset.t!=="post"});
 $("#q").oninput=e=>{q=e.target.value.toLowerCase();render()};$("#f").onchange=e=>{f=e.target.value;render()};
 $("#rf").onclick=()=>{q=f="";$("#q").value="";render()};$("#exp").onclick=csv;$("#ref").onclick=()=>api("refresh").catch(e=>alert(e.message));
 $("#add").onclick=async()=>{const urls=$("#urls").value.split(/\s+/).filter(Boolean);if(!urls.length)return;$("#msg").textContent="Memulai...";try{await api("add",{urls,max:$("#max").value});$("#urls").value="";$("#msg").textContent="Dimulai. Status diperbarui otomatis."}catch(e){$("#msg").textContent=e.message}};
 $("#jobs").onclick=e=>{const id=e.target.dataset.del;if(id&&confirm("Hapus post ini beserta datanya?"))api("delete",{id}).catch(x=>alert(x.message))};
 setInterval(()=>{if(!$("#app").hidden&&S.jobs.some(j=>j.status==="RUNNING"))api("refresh").catch(()=>{})},15000);
-if(pw){$("#pw").value=pw;login()}
+api("refresh").catch(e=>alert(e.message));
 </script></body></html>

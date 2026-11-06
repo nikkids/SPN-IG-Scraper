@@ -6,7 +6,6 @@ const clean = (u) => { const m = String(u).match(/instagram\.com\/(p|reel|reels|
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
-  if (!process.env.APP_PASSWORD || req.headers.get("x-app-password") !== process.env.APP_PASSWORD) return json({ error: "Password salah" }, 401);
   const token = process.env.APIFY_TOKEN;
   if (!token) return json({ error: "APIFY_TOKEN belum diisi di Netlify" }, 500);
   const store = getStore("spn");
